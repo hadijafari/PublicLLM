@@ -47,7 +47,7 @@ from pprint import pprint
 from pydantic import BaseModel, Field
 import asyncio
 from openai import AsyncOpenAI
-from openai.helpers import LocalAudioPlayer
+# from openai.helpers import LocalAudioPlayer
 from pydub import AudioSegment
 
 
