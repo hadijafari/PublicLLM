@@ -18,10 +18,12 @@ import google.generativeai
 import anthropic
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 import datetime
 from urllib.parse import urlparse
 import time
+from pytz import timezone
 import threading
 import boto3
 import json
@@ -347,6 +349,27 @@ def get_screenshot_from_firecrawl(url: str) -> str:
 
 # ==================== Scheduler / Automation ====================
 
+
+
+def start_scheduler():
+    scheduler = BackgroundScheduler(timezone=melbourne_tz)
+
+    times = [
+        (12, 30),
+        (16, 30),
+        (20, 30),
+        (0, 30),
+        (4, 40),
+        (8, 30),
+    ]
+
+    for hour, minute in times:
+        trigger = CronTrigger(hour=hour, minute=minute, timezone=melbourne_tz)
+        scheduler.add_job(run_all_users, trigger)
+        logging.info(f"⏰ Job scheduled for {hour:02d}:{minute:02d} Melbourne time.")
+
+    scheduler.start()
+    logging.info("🟢 Background scheduler started (non-blocking).")
 
 
 def start_firecrawl_scheduler_interrupt(hour: int, minute: int):
@@ -1128,6 +1151,17 @@ def send_summary_email(
 
 
 
+# ==================== run_all_users to be used in the scheduling function ====================
+
+def run_all_users():
+    logging.info("🔄 Running summarization for all users...")
+    User_Daily_scraping_and_summarization("user_8f14e45f", bucket_name, amazon_s3)
+    User_Daily_scraping_and_summarization("user_deada551", bucket_name, amazon_s3)
+    User_Daily_scraping_and_summarization("user_b4fa9ce2", bucket_name, amazon_s3)
+    logging.info("✅ Finished summarization for all users.")
+
+
+
 
 # ==================== Logging Setup ====================
 
@@ -1141,6 +1175,18 @@ logging.basicConfig(
 )
 
 
+
+# ==================== Main Function ====================
+
+if __name__ == "__main__":
+    start_scheduler()
+    
+    # Keep the script alive so the scheduler can run
+    try:
+        while True:
+            time.sleep(60)  # Sleep to prevent exit
+    except (KeyboardInterrupt, SystemExit):
+        print("🛑 Scheduler stopped.")
 
 
 
@@ -1182,7 +1228,8 @@ Email_SMTP_port= 587
 # Set template ID for PDG Generation 
 template_id = "4cc77b23f00e756c"
 
-
+# Melbourne Timezone
+melbourne_tz = timezone("Australia/Melbourne")
 
 
 
