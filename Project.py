@@ -2,7 +2,7 @@
 #                                                                     pip Installs
 ####################################################################################################################################################################################################
 
-!pip install requests apscheduler boto3 firecrawl weasyprint markdown pdfkit pyppeteer playwright xhtml2pdf reportlab lxml firecrawl-py pydub
+# !pip install requests apscheduler boto3 firecrawl weasyprint markdown pdfkit pyppeteer playwright xhtml2pdf reportlab lxml firecrawl-py pydub
 
 
 ####################################################################################################################################################################################################
