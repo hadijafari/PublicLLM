@@ -14,3 +14,4 @@ firecrawl-py
 pydub 
 ffmpeg-python
 pytz
+beautifulsoup4
