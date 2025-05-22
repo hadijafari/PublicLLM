@@ -16,7 +16,7 @@ ffmpeg-python
 pytz
 beautifulsoup4
 openai
-python-gemini-api
+google-generativeai
 anthropic
 
 
