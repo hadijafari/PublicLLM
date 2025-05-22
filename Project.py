@@ -167,7 +167,8 @@ amazon_s3 = boto3.client(
 # - get_screenshot_from_firecrawl(url)                 # Captures a screenshot via Firecrawl
 
 # --- Scheduler / Automation ---
-# - start_firecrawl_scheduler_interrupt(hour, minute)  # Starts a daily scraping scheduler
+# - start_firecrawl_scheduler_interrupt(hour, minute)      # Starts a daily scraping scheduler
+# - def start_scheduler()                                  # Used to run the test every 4 hours
 
 # --- S3 Storage Operations ---
 # - download_json_from_s3(filename, s3_key, bucket_name, s3_client)       # Downloads JSON from S3
@@ -194,6 +195,9 @@ amazon_s3 = boto3.client(
 # --- Email Delivery ---
 # - send_summary_email(summaries, sender_email, sender_password, recipient_email, pdf_url=None, smtp_server, smtp_port, subject_prefix)
 #                                                                       # Sends email with summaries (or no-news update)
+
+
+# def run_all_users()
 
 # ========================================================
 
@@ -1176,21 +1180,6 @@ logging.basicConfig(
 
 
 
-# ==================== Main Function ====================
-
-if __name__ == "__main__":
-    start_scheduler()
-    
-    # Keep the script alive so the scheduler can run
-    try:
-        while True:
-            time.sleep(60)  # Sleep to prevent exit
-    except (KeyboardInterrupt, SystemExit):
-        print("🛑 Scheduler stopped.")
-
-
-
-
 
 
 ####################################################################################################################################################################################################
@@ -1346,28 +1335,34 @@ user3 = {
 
 # The user initializations
 
-append_to_json_list_in_s3(bucket_name, AllUsers_s3_key, user1, amazon_s3)
-Initial_user_Data(user1, amazon_s3)
+# append_to_json_list_in_s3(bucket_name, AllUsers_s3_key, user1, amazon_s3)
+# Initial_user_Data(user1, amazon_s3)
 
-append_to_json_list_in_s3(bucket_name, AllUsers_s3_key, user2, amazon_s3)
-Initial_user_Data(user2, amazon_s3)
+# append_to_json_list_in_s3(bucket_name, AllUsers_s3_key, user2, amazon_s3)
+# Initial_user_Data(user2, amazon_s3)
 
-append_to_json_list_in_s3(bucket_name, AllUsers_s3_key, user3, amazon_s3)
-Initial_user_Data(user3, amazon_s3)
-
-
+# append_to_json_list_in_s3(bucket_name, AllUsers_s3_key, user3, amazon_s3)
+# Initial_user_Data(user3, amazon_s3)
 
 
 
 
 
-User_Daily_scraping_and_summarization("user_8f14e45f", bucket_name, amazon_s3)
-
-User_Daily_scraping_and_summarization("user_deada551", bucket_name, amazon_s3)
-
-User_Daily_scraping_and_summarization("user_b4fa9ce2", bucket_name, amazon_s3)
 
 
+
+
+# ==================== MAIN FUNCTION ====================
+
+if __name__ == "__main__":
+    start_scheduler()
+    
+    # Keep the script alive so the scheduler can run
+    try:
+        while True:
+            time.sleep(60)  # Sleep to prevent exit
+    except (KeyboardInterrupt, SystemExit):
+        print("🛑 Scheduler stopped.")
 
 
 
