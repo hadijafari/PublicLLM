@@ -20,5 +20,5 @@ google-generativeai
 anthropic
 fpdf
 ipython
-
+flask
 
