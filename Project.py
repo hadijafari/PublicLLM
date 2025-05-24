@@ -1101,20 +1101,23 @@ def Generate_PDF(template_id: str, data: dict) -> str:
 
 
 
-def run_all_users():
+async def run_all_users_async():
     logging.info("🔄 Running summarization for all users...")
-    User_Daily_Digest("user_8f14e45f", bucket_name, amazon_s3)
-    User_Daily_Digest("user_deada551", bucket_name, amazon_s3)
-    User_Daily_Digest("user_b4fa9ce2", bucket_name, amazon_s3)
+    await asyncio.gather(
+        User_Daily_Digest("user_8f14e45f", bucket_name, amazon_s3),
+        User_Daily_Digest("user_deada551", bucket_name, amazon_s3),
+        User_Daily_Digest("user_b4fa9ce2", bucket_name, amazon_s3)
+    )
     logging.info("✅ Finished summarization for all users.")
 
 
 
+
 def start_scheduler():
-    scheduler = BackgroundScheduler(timezone=melbourne_tz)
+    scheduler = AsyncIOScheduler(timezone=melbourne_tz)
 
     times = [
-        (12, 10),
+        (12, 15),
         (16, 30),
         (20, 30),
         (0, 30),
@@ -1123,12 +1126,12 @@ def start_scheduler():
     ]
 
     for hour, minute in times:
-        trigger = CronTrigger(hour=hour, minute=minute, timezone=melbourne_tz)
-        scheduler.add_job(run_all_users, trigger)
-        logging.info(f"⏰ Job scheduled for {hour:02d}:{minute:02d} Melbourne time.")
+        trigger = CronTrigger(hour=hour, minute=minute)
+        scheduler.add_job(lambda: asyncio.create_task(run_all_users_async()), trigger=trigger)
+        print(f"⏰ Scheduled job at {hour:02d}:{minute:02d} Melbourne time")
 
     scheduler.start()
-    logging.info("🟢 Background scheduler started (non-blocking).")
+    print("🟢 Scheduler started.")
 
 
 
@@ -1314,17 +1317,9 @@ user3 = {
 # ==================== MAIN FUNCTION ====================
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     start_scheduler()
-    
-    # Keep the script alive so the scheduler can run
-    try:
-        while True:
-            time.sleep(60)  # Sleep to prevent exit
-    except (KeyboardInterrupt, SystemExit):
-        print("🛑 Scheduler stopped.")
-
-
-
+    asyncio.get_event_loop().run_forever()
 
 
 
