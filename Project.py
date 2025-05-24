@@ -2,12 +2,13 @@
 #                                                                     pip Installs
 ####################################################################################################################################################################################################
 
-# !pip install requests apscheduler boto3 firecrawl weasyprint markdown pdfkit pyppeteer playwright xhtml2pdf reportlab lxml firecrawl-py pydub
+# !pip install requests apscheduler boto3 firecrawl weasyprint markdown pdfkit pyppeteer playwright xhtml2pdf reportlab lxml firecrawl-py pydub ffmpeg-python pytz
 
 
 ####################################################################################################################################################################################################
 #                                                                     Imports
 ####################################################################################################################################################################################################
+
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -19,11 +20,11 @@ import anthropic
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from pytz import timezone
 from datetime import datetime
 import datetime
 from urllib.parse import urlparse
 import time
-from pytz import timezone
 import threading
 import boto3
 import json
@@ -37,6 +38,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from xhtml2pdf import pisa
 from firecrawl import FirecrawlApp
+from firecrawl import AsyncFirecrawlApp
 from flask import Flask, Response, request
 import pdfkit
 from weasyprint import HTML, CSS
@@ -49,6 +51,9 @@ import asyncio
 from openai import AsyncOpenAI
 # from openai.helpers import LocalAudioPlayer
 from pydub import AudioSegment
+import nest_asyncio
+import random
+from collections import defaultdict
 
 
 
@@ -138,7 +143,7 @@ amazon_s3 = boto3.client(
 )
 
 
-
+nest_asyncio.apply()
 
 
 
@@ -158,49 +163,52 @@ amazon_s3 = boto3.client(
 
 # ==================== FUNCTION INDEX ====================
 
+
 # --- UUID/User ID Generation ---
-# - generate_unique_user_id()              # Generates a globally unique user ID
-# - generate_short_user_id()               # Generates a short unique user ID
+# - generate_unique_user_id()            # Generates a unique ID for user identification
+# - generate_short_user_id()             # Generates a shortened unique user ID
+
 
 # --- Web Scraping ---
-# - scrape_with_firecrawl(target_url, max_retries=5)   # Scrapes content using Firecrawl API
-# - get_screenshot_from_firecrawl(url)                 # Captures a screenshot via Firecrawl
+# - scrape_with_firecrawl()              # Scrapes content and links from a URL using Firecrawl API
+# - scrape_multiple_urls()               # Scrapes a list of URLs and returns their results
+
 
 # --- Scheduler / Automation ---
-# - start_firecrawl_scheduler_interrupt(hour, minute)      # Starts a daily scraping scheduler
-# - def start_scheduler()                                  # Used to run the test every 4 hours
+# - start_firecrawl_scheduler_blocking() # Starts a blocking daily scrape job
+# - start_firecrawl_scheduler_interrupt()# Starts a non-blocking (interruptible) daily scrape job
+
 
 # --- S3 Storage Operations ---
-# - download_json_from_s3(filename, s3_key, bucket_name, s3_client)       # Downloads JSON from S3
-# - upload_json_to_s3(filename, s3_key, bucket_name, json_data, s3_client)# Uploads JSON to S3
-# - list_s3_buckets(s3_client)                                            # Lists all S3 buckets
-# - list_files_in_bucket(bucket_name, s3_client, prefix="")               # Lists files in a bucket
-# - create_s3_bucket(bucket_name, region, s3_client)                      # Creates a new S3 bucket
-# - create_s3_folder(bucket_name, folder_path, s3_client)                 # Creates a folder in S3
-# - list_json_files_in_folder(bucket_name, folder_prefix, s3_client)      # Lists .json files in a folder
-# - append_to_json_list_in_s3(bucket_name, s3_key, new_element, s3_client)# Appends a new entry to JSON list in S3
-# - load_user_profile_from_s3(user_id, bucket_name, s3_client)            # Loads user profile JSON from S3
+# - download_json_from_s3()              # Downloads and parses a JSON file from S3
+# - upload_json_to_s3()                  # Uploads a Python dictionary as a JSON file to S3
+# - list_s3_buckets()                    # Lists all S3 buckets in the AWS account
+# - list_files_in_bucket()               # Lists all files in a specified S3 bucket
+# - create_s3_bucket()                   # Creates a new S3 bucket in a given region
+# - create_s3_folder()                   # Creates a virtual folder in an S3 bucket
+# - def Initial_User_Data(user_data: dict, s3_client):      # Process all the user data and upload everything to amazon S3
 
-# --- User Data Initialization ---
-# - Initial_user_Data(user_data, s3_client)                               # Uploads profile and scrapes user sources
+# --- Link Extraction & Comparison ---
+# - extract_links_from_markdown_only()  # Extracts links from markdown content
+# - extract_links_only()                # Extracts the raw links list from scrape result
+# - print_links_nicely()                # Prints all links in a clean, numbered format
+# - get_new_urls_only()                 # Compares two URL lists and finds new ones
+# - get_new_links()                     # Compares two lists of link dictionaries and finds new ones
+# - get_new_URLs()                      # Compares old and new JSONs and returns unseen links
 
-# --- Link Processing & Summarization ---
-# - summarize_markdown_with_gpt(markdown_content)                         # Summarizes markdown using GPT
-# - process_and_summarize_new_links(new_links_summary)                    # Scrapes & summarizes new links
-# - User_Daily_scraping_and_summarization(user_id, bucket_name, s3_client)# Main daily workflow for users
 
-# --- PDF Generation ---
-# - Generate_PDF(template_id, data)                                       # Generates a PDF using APITemplate.io
+# --- OpenAI Integration ---
+# - extract_news_links_from_scrape()   # Uses GPT to extract news links from scraped markdown
+
+
+# --- Summarization & Digest Creation ---
+# - summarize_articles_with_gpt()      # Summarizes scraped markdown articles using GPT
+# - combine_all_summaries()            # Combines summaries from multiple AI sources
+# - build_html_digest()                # Creates an HTML digest from summarized articles
+
 
 # --- Email Delivery ---
-# - send_summary_email(summaries, sender_email, sender_password, recipient_email, pdf_url=None, smtp_server, smtp_port, subject_prefix)
-#                                                                       # Sends email with summaries (or no-news update)
-
-
-# def run_all_users()
-
-# ========================================================
-
+# - send_summary_email()               # Sends the HTML digest via email
 
 
 
@@ -215,8 +223,9 @@ amazon_s3 = boto3.client(
 
 # ==================== UUID/User ID Generation ====================
 
-
-
+#     /////////////////////////////////////
+#     Generate a globally unique user ID using UUID4
+#     /////////////////////////////////////
 def generate_unique_user_id() -> str:
     """
     Generate a globally unique user ID with a 'user_' prefix using UUID4.
@@ -226,10 +235,9 @@ def generate_unique_user_id() -> str:
     """
     return f"user_{uuid.uuid4()}"
 
-
-
-
-
+#     /////////////////////////////////////
+#     Generate a globally shortened unique user ID using UUID4
+#     /////////////////////////////////////
 def generate_short_user_id() -> str:
     """
     Generate a short unique user ID like 'user_8f14e45f'.
@@ -240,114 +248,142 @@ def generate_short_user_id() -> str:
     short_id = str(uuid.uuid4())[:8]
     return f"user_{short_id}"
 
-
-
-
-
-
-
 # ==================== Web Scraping ====================
 
+#     /////////////////////////////////////
+#     URL Scraper with Firecrawl
+#     /////////////////////////////////////
 
-
-def scrape_with_firecrawl(target_url: str, max_retries: int = 5) -> dict:
-    """
-    Scrapes the given URL using Firecrawl API and returns markdown, links, and original URL.
-    Automatically retries on 429 Too Many Requests errors.
-
-    Parameters:
-        target_url (str): The webpage URL to scrape.
-        max_retries (int): Maximum number of retries on 429 error.
-
-    Returns:
-        dict: {
-            'url': str,        # Original URL
-            'markdown': str,   # Markdown version of the content
-            'links': list      # List of extracted links
-        }
-    """
-    if not firecrawl_api_key:
-        raise ValueError("Firecrawl API key is missing. Please set FIRECRAWL_API_KEY in your environment.")
-
-    api_url = "https://api.firecrawl.dev/v1/scrape"
-
-    payload = {
-        "url": target_url,
-        "formats": ["markdown", "links"],
-        "onlyMainContent": True,
-        "removeBase64Images": True,
-        "blockAds": True,
-        "proxy": "basic"
-    }
-
-    headers = {
-        "Authorization": f"Bearer {firecrawl_api_key}",
-        "Content-Type": "application/json"
-    }
-
-    retries = 0
-    while retries <= max_retries:
+# Retry wrapper with exponential backoff
+async def retry_with_backoff(coro_func, retries=3, base_delay=1, timeout=30):
+    for attempt in range(retries):
         try:
-            response = requests.post(api_url, json=payload, headers=headers)
-            response.raise_for_status()
-            data = response.json().get("data", {})
-            return {
-                "url": target_url,
-                "markdown": data.get("markdown", "No markdown found."),
-                "links": data.get("links", [])
-            }
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 429:
-                retries += 1
-                time.sleep(5)
-                continue
-            return {"error": f"HTTP Error: {e}", "url": target_url}
+            return await asyncio.wait_for(coro_func(), timeout=timeout)
         except Exception as e:
-            return {"error": f"Error: {e}", "url": target_url}
+            if attempt == retries - 1:
+                raise e
+            delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)
+            print(f"🔁 Retry {attempt + 1}/{retries} after {delay:.1f}s due to error: {e}")
+            await asyncio.sleep(delay)
 
-    return {"error": f"Too many retries after hitting 429 Too Many Requests.", "url": target_url}
-            
 
 
-
-
-def get_screenshot_from_firecrawl(url: str) -> str:
-    """
-    Uses Firecrawl to take a screenshot of the given URL and returns the screenshot URL.
-
-    Parameters:
-        url (str): The target webpage URL.
-
-    Returns:
-        str: URL to the screenshot image, or None if not found or failed.
-    """
+async def Scrape(url: str) -> dict:
     try:
-        app = FirecrawlApp(api_key=firecrawl_api_key)
+        app = AsyncFirecrawlApp(api_key='fc-e8846f8f7b184f6a84c3df19bae6682e')
 
-        scrape_result = app.scrape_url(
-            url=url,
-            formats=['html'],  # Only need HTML if you're not parsing content
-            actions=[
-                {"type": "wait", "milliseconds": 3000},
-                {"type": "screenshot"}
-            ]
+        # Use retry and timeout logic around the scrape_url call
+        response = await retry_with_backoff(
+            lambda: app.scrape_url(
+                url=url,
+                formats=['markdown', 'links', 'rawHtml', 'screenshot'],
+                only_main_content=True,
+                proxy="stealth"
+            ),
+            retries=3,
+            base_delay=1,
+            timeout=30
         )
 
-        if scrape_result.success:
-            screenshots = scrape_result.actions.screenshots
-            if screenshots:
-                return screenshots[0]  # Return the first screenshot URL
+        # Safety check in case rawHtml is missing or malformed
+        if not response.rawHtml:
+            raise ValueError("No raw HTML returned by Firecrawl.")
+
+        # Extract text content using BeautifulSoup
+        soup = BeautifulSoup(response.rawHtml, 'html.parser')
+        content_lines = []
+
+        for tag in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p']):
+            tag_name = tag.name.upper()
+            text = tag.get_text(strip=True)
+            if tag_name.startswith("H"):
+                content_lines.append(f"\n{text}:\n")
             else:
-                print(f"No screenshot found for {url}")
-        else:
-            print(f"❌ Screenshot scrape failed for {url}")
+                content_lines.append(text)
+
+        content = "\n".join(content_lines)
+
+        # 🔒 Truncate content to 20,000 characters if necessary
+        max_chars = 20000
+        if len(content) > max_chars:
+            content = content[:max_chars]
+
+        # Return structured result
+        return {
+            "Scraped URL": url,
+            "Links": response.links,
+            "Screenshot": response.screenshot,
+            "Content": content,
+            "Error": True  # ✅ Success
+        }
 
     except Exception as e:
-        print(f"❌ Exception while taking screenshot: {e}")
+        print(f"❌ Error scraping {url}: {e}")
+        return {
+            "Scraped URL": url,
+            "Links": [],
+            "Screenshot": None,
+            "Content": "",
+            "Error": False,  # ❌ Failure
+            "ErrorMessage": str(e)
+        }
 
-    return None
+
+ # Function to scrape multiple URLs
+async def Scrape_Multiple(urls: list) -> list:
+    tasks = [Scrape(url) for url in urls]
+    results = await asyncio.gather(*tasks, return_exceptions=False)
+    return results
 
 
+
+# Run the batch scrape and log everything (no file output)
+async def Scrape_Multiple_Run(urls):
+    print("🚀 Starting batch scrape...\n")
+
+    results = await Scrape_Multiple(urls)
+
+    success_count = 0
+    fail_count = 0
+    all_errors = []
+
+    for i, result in enumerate(results):
+        url = result.get("Scraped URL", "Unknown")
+        print(f"\n📄 [{i+1}/{len(results)}] {url}")
+
+        if result.get("Error") is True:
+            print("✅ SUCCESS")
+            print(f"🔗 Links found: {len(result['Links'])}")
+            print(f"📝 Content length: {len(result['Content'])} characters")
+            success_count += 1
+        else:
+            print("❌ FAILED")
+            print(f"💬 Reason: {result.get('ErrorMessage', 'Unknown error')}")
+            all_errors.append({
+                "URL": url,
+                "ErrorMessage": result.get("ErrorMessage", "Unknown error")
+            })
+            fail_count += 1
+
+    print("\n✅ Finished scraping.")
+    print(f"✔️ {success_count} succeeded")
+    print(f"❌ {fail_count} failed")
+
+    # ✅ Just return the results directly — no saving to files
+    return {
+        "results": results,
+        "summary": {
+            "success": success_count,
+            "fail": fail_count,
+            "errors": all_errors
+        }
+    }
+
+
+
+
+
+            
 
 
 
@@ -355,55 +391,12 @@ def get_screenshot_from_firecrawl(url: str) -> str:
 
 
 
-def start_scheduler():
-    scheduler = BackgroundScheduler(timezone=melbourne_tz)
-
-    times = [
-        (14, 15),
-        (16, 30),
-        (20, 30),
-        (0, 30),
-        (4, 40),
-        (8, 30),
-    ]
-
-    for hour, minute in times:
-        trigger = CronTrigger(hour=hour, minute=minute, timezone=melbourne_tz)
-        scheduler.add_job(run_all_users, trigger)
-        logging.info(f"⏰ Job scheduled for {hour:02d}:{minute:02d} Melbourne time.")
-
-    scheduler.start()
-    logging.info("🟢 Background scheduler started (non-blocking).")
-
-
-def start_firecrawl_scheduler_interrupt(hour: int, minute: int):
-    """
-    Starts a background scheduler to run the Firecrawl scrape job daily at a specific time.
-
-    Parameters:
-        hour (int): Hour in 24-hour format (e.g., 13 for 1 PM)
-        minute (int): Minute (e.g., 30 for half past the hour)
-    """
-
-    def job():
-        # You can change this URL to any page you want to scrape
-        result = scrape_with_firecrawl("https://openai.com/news/")
-        print(f"[{datetime.now()}] Scraped successfully.")
-        filename = f"daily_scrape_{datetime.now().date()}.md"
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write(result["markdown"])
-        print(f"Saved to {filename}")
-
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(job, 'cron', hour=hour, minute=minute)
-    scheduler.start()
-
-    print(f"✅ Scheduler started: scraping daily at {hour:02d}:{minute:02d}.")
-    return scheduler  # Optional, for future shutdown or inspection
-
 
 # ==================== S3 Storage Operations ====================
 
+#     /////////////////////////////////////
+#     Downloads a JSON file from S3 and returns it as a Python dictionary.
+#     /////////////////////////////////////
 def download_json_from_s3(filename: str, s3_key: str, bucket_name: str, s3_client) -> dict:
     """
     Downloads a JSON file from S3 and returns it as a Python dictionary.
@@ -423,9 +416,9 @@ def download_json_from_s3(filename: str, s3_key: str, bucket_name: str, s3_clien
     return json.loads(content)
 
 
-
-
-
+#     /////////////////////////////////////
+#     Uploads a Python dictionary as a JSON file to S3.
+#     /////////////////////////////////////
 def upload_json_to_s3(filename: str, s3_key: str, bucket_name: str, json_data: dict, s3_client) -> bool:
     """
     Uploads a Python dictionary as a JSON file to S3.
@@ -453,11 +446,10 @@ def upload_json_to_s3(filename: str, s3_key: str, bucket_name: str, json_data: d
     except Exception as e:
         print(f"❌ Upload failed: {e}")
         return False
-
-
-
-
-
+    
+#     /////////////////////////////////////
+#     Lists all bucket names in the connected AWS account.
+#     /////////////////////////////////////
 def list_s3_buckets(s3_client) -> list:
     """
     Lists all bucket names in the connected AWS account.
@@ -473,9 +465,9 @@ def list_s3_buckets(s3_client) -> list:
     print("📦 S3 Buckets found:", bucket_names)
     return bucket_names
 
-
-
-
+#     /////////////////////////////////////
+#     Lists all object keys (files) in a specific S3 bucket (optionally under a prefix/folder).
+#     /////////////////////////////////////
 def list_files_in_bucket(bucket_name: str, s3_client, prefix: str = "") -> list:
     """
     Lists all object keys (files) in a specific S3 bucket (optionally under a prefix/folder).
@@ -494,9 +486,9 @@ def list_files_in_bucket(bucket_name: str, s3_client, prefix: str = "") -> list:
     print(f"📂 Files in s3://{bucket_name}/{prefix}:", file_keys)
     return file_keys
 
-
-
-
+#     /////////////////////////////////////
+#     Creates a new S3 bucket in the specified AWS region.
+#     /////////////////////////////////////
 def create_s3_bucket(bucket_name: str, region: str, s3_client) -> bool:
     """
     Creates a new S3 bucket in the specified AWS region.
@@ -528,9 +520,9 @@ def create_s3_bucket(bucket_name: str, region: str, s3_client) -> bool:
         print(f"❌ Failed to create bucket: {e}")
     return False
 
-
-
-
+#     /////////////////////////////////////
+#     Creates a 'folder' in an S3 bucket by uploading a zero-byte object ending with '/'.
+#     /////////////////////////////////////
 def create_s3_folder(bucket_name: str, folder_path: str, s3_client) -> bool:
     """
     Creates a 'folder' in an S3 bucket by uploading a zero-byte object ending with '/'.
@@ -555,9 +547,9 @@ def create_s3_folder(bucket_name: str, folder_path: str, s3_client) -> bool:
         return False
 
 
-
-
-
+#     /////////////////////////////////////
+#     Lists all .json files in a specific folder (prefix) in an S3 bucket.
+#     /////////////////////////////////////
 def list_json_files_in_folder(bucket_name: str, folder_prefix: str, s3_client) -> list:
     """
     Lists all .json files in a specific folder (prefix) in an S3 bucket.
@@ -587,8 +579,10 @@ def list_json_files_in_folder(bucket_name: str, folder_prefix: str, s3_client) -
 
 
 
-
-
+#     /////////////////////////////////////
+#     Opens a JSON file in S3 (expected to be a list of dicts), checks if an email exists,
+#     appends a new element if it's not a duplicate, and uploads the updated file back to S3.
+#     /////////////////////////////////////
 def append_to_json_list_in_s3(bucket_name: str, s3_key: str, new_element: dict, s3_client) -> bool:
     """
     Opens a JSON file in S3 (expected to be a list of dicts), checks if an email exists,
@@ -656,42 +650,12 @@ def append_to_json_list_in_s3(bucket_name: str, s3_key: str, new_element: dict, 
 
 
 
+        
 
-def load_user_profile_from_s3(user_id: str, bucket_name: str, s3_client) -> dict:
-    """
-    Loads the user profile JSON from S3 and returns it as a dictionary.
-
-    Parameters:
-        user_id (str): The user ID (e.g., "user_8f14e45f")
-        bucket_name (str): The S3 bucket name
-        s3_client: The Boto3 S3 client
-
-    Returns:
-        dict: The user profile data
-    """
-    key = f"{user_id}/profile.json"
-
-    try:
-        response = s3_client.get_object(Bucket=bucket_name, Key=key)
-        content = response["Body"].read().decode("utf-8")
-        profile_data = json.loads(content)
-        return profile_data
-
-    except s3_client.exceptions.NoSuchKey:
-        print(f"❌ Profile not found at: {key}")
-        return {}
-    except Exception as e:
-        print(f"❌ Error loading profile from S3: {e}")
-        return {}
-
-
-
-
-
-
-# ==================== User Data Initialization ====================
-
-def Initial_user_Data(user_data: dict, s3_client):
+#     /////////////////////////////////////
+#     Processes user data by.
+#     /////////////////////////////////////
+async def Initial_user_Data(user_data: dict, s3_client):
     """
     Processes user data by:
     - Creating a folder in S3
@@ -721,13 +685,22 @@ def Initial_user_Data(user_data: dict, s3_client):
     for url in sources:
         try:
             logging.info(f"🌐 Scraping URL: {url}")
-            scrape_result = scrape_with_firecrawl(url)
+            scrape_result = await Scrape(url)
 
-            # Error Handling: If scraping failed, skip
-            if "error" in scrape_result:
-                logging.warning(f"⚠️ Scraping failed for {url}: {scrape_result['error']}")
+            # If scraping failed, skip
+            if not scrape_result.get("Error"):
+                logging.warning(f"⚠️ Scraping failed for {url}: {scrape_result.get('ErrorMessage', 'Unknown error')}")
                 continue
 
+
+             # Transform the scrape result to match your S3 schema
+            formatted_result = {
+                "url": scrape_result["Scraped URL"],
+                "markdown": scrape_result["Content"],
+                "links": scrape_result["Links"],
+                "error": not scrape_result["Error"]  # True if it failed, False if success
+            }
+            
             # Build filename like techcrunch_com.json
             domain = urlparse(url).netloc.replace('.', '_')
             file_name = f"{domain}.json"
@@ -746,64 +719,39 @@ def Initial_user_Data(user_data: dict, s3_client):
 
 
 
+# ==================== Summarization & Digest Creation ====================
 
-# ==================== Link Processing & Summarization ====================
-
-
-
-
-def summarize_markdown_with_gpt(markdown_content: str) -> str:
+#     /////////////////////////////////////
+#     Uses GPT to summarize each scraped article from markdown
+#     /////////////////////////////////////
+def GPT_Summarizer(markdown_content: str) -> str:
     """
-    Summarizes given markdown content using OpenAI GPT.
+    Summarizes given content in a journalistic tone with a headline.
 
     Parameters:
-        markdown_content (str): Markdown-formatted content to summarize.
+        markdown_content (str): Raw article content to summarize.
 
     Returns:
-        str: A concise, professional summary under 500 words.
+        str: A summary with a title, written in a professional news tone.
     """
-    system_prompt = """## Purpose
-The primary task of the AI is to create concise summaries of articles, ensuring the summaries are under 500 words and maintain the integrity of the original content.
+    if not markdown_content.strip():
+        return "No content available to summarize."
 
-## Extraction Guidelines
-- Identify and prioritize main arguments, key points, and significant findings in the article.
-- Extract important quotes that represent central ideas or unique perspectives.
-- Preserve research findings and statistical data.
-- Maintain proper attribution for all quotes and claims (e.g., specify who said what).
+    system_prompt = "You are an experienced journalist writing for a professional news publication."
 
-## Output Format Requirements
-- The summary must be in string format.
-- Ensure a clear structure with a logical flow.
-- Limit the summary to under 500 words.
-- Include proper formatting for quotes, emphasis, and section breaks if needed.
+    user_prompt = f"""Summarize the following article in a clear and professional tone. At the top of the summary, include a compelling and relevant title. The rest of the summary should:
 
-## Content Style Guidelines
-- Use clear, concise language.
-- Maintain an objective tone.
-- Prohibit meta-references (e.g., no mentions of being an AI or that this is a summary).
-- Avoid unnecessary editorializing or commentary on the content.
+- Be under 500 words
+- Capture the main arguments, tone, and insights of the article
+- Use natural, narrative-style paragraphs (no bullet points or lists)
+- Include quotes or paraphrased lines if useful
+- Avoid all formatting (no markdown, headings, etc.)
+- Never mention that this is a summary or refer to the original article
 
-## Quality Checks
-- Verify that all key points from the original article are included.
-- Ensure proper attribution is maintained for all extracted quotes and data.
-- Confirm the summary stays under the 500-word limit.
-- Validate that the summary accurately represents the original article's intent and message.
-
-## Tone and Approach
-The system prompt should establish a professional, analytical tone focused on information accuracy and clarity. 
-It should emphasize the importance of distilling complex information while maintaining fidelity to the source material."""
-
-    user_prompt = f"""Please analyze the following article content and create a concise, well-structured summary that:
-
-- Is under 500 words
-- Extracts and prioritizes the main arguments, key points, and significant findings
-- Identifies and preserves important quotes with proper attribution
-- Presents information in markdown format
-- Avoids any meta-references (no mentions of being an AI or that this is a summary)
-- Presents information directly and clearly
-- Do not give any additional words of any kind. Just give the summary as if you are a news reporter
-
-<article_content>{markdown_content}</article_content>"""
+Article:
+\"\"\"
+{markdown_content}
+\"\"\""""
 
     prompts = [
         {"role": "system", "content": system_prompt},
@@ -822,220 +770,26 @@ It should emphasize the importance of distilling complex information while maint
         return f"Error summarizing content: {e}"
 
 
+###############################################################
+#                                NEW
+###############################################################
 
 
+# Clear previous handlers if running in Jupyter multiple times
+for handler in logging.root.handlers[:]:
+    logging.root.removeHandler(handler)
 
-def process_and_summarize_new_links(new_links_summary: dict) -> dict:
-    """
-    Scrapes and summarizes all new links in the new_links_summary dictionary.
-
-    Parameters:
-        new_links_summary (dict): Dictionary structured as:
-            {
-                "source_url": {
-                    "new_links": [
-                        {"url": "new_link_1", "summary": ""},
-                        ...
-                    ]
-                },
-                ...
-            }
-
-    Returns:
-        dict: The same dictionary with summaries filled in.
-    """
-    for source_url, data in new_links_summary.items():
-        for link_entry in data["new_links"]:
-            link_url = link_entry["url"]
-            print(f"Processing: {link_url}")
-
-            scraped = scrape_with_firecrawl(link_url)
-
-            if "error" in scraped:
-                print(f"Failed to scrape {link_url}: {scraped['error']}")
-                link_entry["summary"] = f"Error: {scraped['error']}"
-                continue
-
-            markdown = scraped.get("markdown", "")
-            if not markdown.strip():
-                link_entry["summary"] = "Error: No markdown content found."
-                continue
-
-            summary = summarize_markdown_with_gpt(markdown)
-            link_entry["summary"] = summary
-            print(f"Summary complete for {link_url}")
-
-    return new_links_summary
+# Set up logging to display in JupyterLab output cells
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 
 
 
 
 
-def User_Daily_scraping_and_summarization(user_id: str, bucket_name: str, s3_client):
-    """
-    Main workflow for scraping and summarizing new content for a given user.
-
-    Parameters:
-        user_id (str): The ID of the user (e.g., 'user_8f14e45f')
-        bucket_name (str): Name of the S3 bucket
-        s3_client: Boto3 S3 client instance
-
-    Returns:
-        dict: A dictionary of all new links and their summaries
-    """
-    User_Profile = load_user_profile_from_s3(user_id, bucket_name,s3_client)
-    print(json.dumps(User_Profile, indent=4))
-    
-    prefix = f"{user_id}/"
-    json_files_List = list_json_files_in_folder(bucket_name, prefix, s3_client)
-
-    print("The available JSON files are here:")
-    print(json.dumps(json_files_List, indent=4))
-    print("\n\n\n\n\n\n")
-
-    new_links_summary = {}
-
-    for s3_key in json_files_List:
-        filename = s3_key.split("/")[-1]
-
-        if filename == "profile.json":
-            continue
-
-        full_key = f"{prefix}{filename}"
-        Yesterday_Data = download_json_from_s3(full_key, full_key, bucket_name, s3_client)
-
-        url = Yesterday_Data['url']
-        Today_Data = scrape_with_firecrawl(url)
-
-        if "error" in Today_Data:
-            print(f"Skipping {url} due to error: {Today_Data['error']}")
-            continue
-
-        upload_json_to_s3(full_key, full_key, bucket_name, Today_Data, s3_client)
-
-        Yesterday_Links = Yesterday_Data.get("links", [])
-        today_Links = Today_Data.get("links", [])
-
-        New_Links = list(set(today_Links) - set(Yesterday_Links))
-
-        if New_Links:
-            new_links_summary[url] = {"new_links": []}
-
-            for link in New_Links:
-                new_links_summary[url]["new_links"].append({
-                    "url": link,
-                    "summary": ""
-                })
-
-    print("Detected new links:")
-    print(json.dumps(new_links_summary, indent=4))
-    
-    # Filter out external links that don’t match the source domain
-    for source_url in list(new_links_summary.keys()):
-        source_domain = urlparse(source_url).netloc.replace("www.", "").lower()
-        filtered_links = []
-
-        for link in new_links_summary[source_url]["new_links"]:
-            link_domain = urlparse(link["url"]).netloc.replace("www.", "").lower()
-
-            if link_domain == source_domain:
-                filtered_links.append(link)
-
-        if filtered_links:
-            new_links_summary[source_url]["new_links"] = filtered_links
-        else:
-            # Remove the source completely if no valid links remain
-            del new_links_summary[source_url]
-
-        
-    updated_links_summary = process_and_summarize_new_links(new_links_summary)
-
-    print("Final summaries:")
-    print(json.dumps(updated_links_summary, indent=4))
-
-
-    # Step: Flatten summaries
-    all_summaries = []
-    for source_url, data in updated_links_summary.items():
-        for item in data["new_links"]:
-            screenshot_url = get_screenshot_from_firecrawl(item["url"])
-            
-            all_summaries.append({
-                "source": source_url,
-                "url": item["url"],
-                "summary": item["summary"],
-                "screenshot": screenshot_url
-            })
-    
-                
-    print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
-    print(json.dumps(all_summaries, indent=4))
-    print("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
-
-    data_for_pdf = {
-    "all_summaries": all_summaries
-    }
-
-    pdf_url = Generate_PDF(template_id, data_for_pdf)
-
-    
-        # Step: Send the email
-    if not all_summaries:
-        print("📭 No new summaries today. Sending no-news email...")
-    else:
-        print(f"📬 Preparing to send {len(all_summaries)} summaries...")
-    
-    send_summary_email(
-        summaries=all_summaries,
-        sender_email=Email_SyncLiving_Sender,
-        sender_password=Email_SyncLiving_Sender_AppPassword,
-        recipient_email=User_Profile["email"],
-        pdf_url=pdf_url  # ✅ NEW ARG
-    )
-
-
-
-
-# ==================== PDF Generation ====================
-
-def Generate_PDF(template_id: str, data: dict) -> str:
-    """
-    Generate a PDF using APITemplate.io with the given template ID and data.
-
-    Args:
-        template_id (str): The ID of the template you created in APITemplate.io
-        data (dict): A JSON-like Python dictionary containing dynamic data for the template
-
-    Returns:
-        str: The download URL of the generated PDF if successful, or an error message
-    """
-    if not apiTemplate_api_key:
-        raise ValueError("❌ APITEMPLATE_API_KEY is not set in your environment.")
-
-    url = f"https://api.apitemplate.io/v1/create?template_id={template_id}"
-    headers = {
-        "Content-Type": "application/json",
-        "X-API-KEY": apiTemplate_api_key
-    }
-
-    response = requests.post(url, headers=headers, json=data)
-
-    if response.status_code == 200:
-        result = response.json()
-        download_url = result.get("download_url")
-        print("✅ PDF Generated!")
-        print("📎 Download URL:", download_url)
-        return download_url
-    else:
-        print("❌ Error:", response.status_code)
-        print(response.text)
-        return None
-
-
-
-
-# ==================== Email Delivery ====================
 
 def send_summary_email(
     summaries: list,
@@ -1155,7 +909,197 @@ def send_summary_email(
 
 
 
-# ==================== run_all_users to be used in the scheduling function ====================
+
+def load_user_profile_from_s3(user_id: str, bucket_name: str, s3_client) -> dict:
+    """
+    Loads the user profile JSON from S3 and returns it as a dictionary.
+
+    Parameters:
+        user_id (str): The user ID (e.g., "user_8f14e45f")
+        bucket_name (str): The S3 bucket name
+        s3_client: The Boto3 S3 client
+
+    Returns:
+        dict: The user profile data
+    """
+    key = f"{user_id}/profile.json"
+
+    try:
+        response = s3_client.get_object(Bucket=bucket_name, Key=key)
+        content = response["Body"].read().decode("utf-8")
+        profile_data = json.loads(content)
+        return profile_data
+
+    except s3_client.exceptions.NoSuchKey:
+        print(f"❌ Profile not found at: {key}")
+        return {}
+    except Exception as e:
+        print(f"❌ Error loading profile from S3: {e}")
+        return {}
+
+
+
+async def User_Daily_Digest(user_id: str, bucket_name: str, s3_client):
+
+
+    User_Profile = load_user_profile_from_s3(user_id, bucket_name, s3_client)
+    print("User Profile")
+    print(json.dumps(User_Profile, indent=4))
+    print("\n\n\n")
+
+    prefix = f"{user_id}/"
+    json_files_List = list_json_files_in_folder(bucket_name, prefix, s3_client)
+
+    print("The available JSON files are here:")
+    print(json.dumps(json_files_List, indent=4))
+    print("\n\n\n")
+
+    all_new_links = []  # collect all new links from all the URLs
+
+    for s3_key in json_files_List:
+        filename = s3_key.split("/")[-1]
+        if filename == "profile.json":
+            continue
+
+        full_key = f"{prefix}{filename}"
+        Yesterday_Data = download_json_from_s3(full_key, full_key, bucket_name, s3_client)
+        Today_Data = await Scrape(Yesterday_Data['Scraped URL'])
+        upload_json_to_s3(full_key, full_key, bucket_name, Today_Data, s3_client)
+
+        Yesterday_Links = Yesterday_Data.get("Links", [])
+        today_Links = Today_Data.get("Links", [])
+
+        # ✅ Filter links to match the domain of the Scraped URL
+        source_domain = urlparse(Yesterday_Data['Scraped URL']).netloc.replace("www.", "").lower()
+        today_Links = [
+            link for link in today_Links
+            if urlparse(link).netloc.replace("www.", "").lower() == source_domain
+        ]
+        
+        New_Links = list(set(today_Links) - set(Yesterday_Links))
+        all_new_links.extend(New_Links)
+
+        # ✅ Enforce user's total new link scraping limit
+        max_links = User_Profile.get("sources_Limit", 5)
+        all_new_links = all_new_links[:max_links]
+
+    print("All New Links:")
+    print(json.dumps(all_new_links, indent=4))
+    print("\n\n\n\n\n\n")
+
+    # Step: Run batch scraping on all new links
+    scrape_response = await Scrape_Multiple_Run(all_new_links)
+    scraped_data_list = scrape_response["results"]
+
+    # Enhance each item with a "Summary" generated by GPT_Summarizer
+    for i, item in enumerate(scraped_data_list):
+        content = item.get("Content", "")
+        summary = GPT_Summarizer(content)  # Assumes GPT_Summarizer is sync
+        updated_item = {}
+        for key in item:
+            updated_item[key] = item[key]
+            if key == "Content":
+                updated_item["Summary"] = summary
+        scraped_data_list[i] = updated_item
+
+    print("Final dictionary:")
+    print(json.dumps(scraped_data_list, indent=4))
+
+    # Prepare data for PDF and email
+    all_summaries = []
+    for item in scraped_data_list:
+        summary_entry = {
+            "url": item.get("Scraped URL", "N/A"),
+            "screenshot": item.get("Screenshot", ""),
+            "summary": item.get("Summary", "No summary available.")
+        }
+        all_summaries.append(summary_entry)
+
+    data_for_pdf = {
+        "all_summaries": all_summaries
+    }
+
+    pdf_url = Generate_PDF(template_id, data_for_pdf)
+
+    # Generate the audio file
+
+    # Extract all summaries
+    summaries = [entry.get("Summary", "") for entry in all_summaries]
+    
+    # Combine them into one string with pauses for readability
+    combined_summary = "\n\n".join(summaries)
+
+
+    # Create an audio file for the podcast:
+
+    # response = openai.audio.speech.create(
+    #     model="gpt-4o-mini-tts",  # or "tts-1-hd" for high-definition
+    #     voice="nova",   # Options: "alloy", "echo", "fable", "onyx", "nova", "shimmer", "ash", "ballad", "coral", "sage"
+    #     input=combined_summary
+    # )
+    
+    # Save the audio to a file
+    # with open("output_audio.mp3", "wb") as f:
+    #     f.write(response.content)
+    
+    # print("Audio file saved as output_audio.mp3")
+
+
+
+
+
+    if not all_summaries:
+        print("📭 No new summaries today. Sending no-news email...")
+    else:
+        print(f"📬 Preparing to send {len(all_summaries)} summaries...")
+
+    send_summary_email(
+        summaries=all_summaries,
+        sender_email=Email_SyncLiving_Sender,
+        sender_password=Email_SyncLiving_Sender_AppPassword,
+        recipient_email=User_Profile["email"],
+        pdf_url=pdf_url
+    )
+
+
+
+
+
+
+def Generate_PDF(template_id: str, data: dict) -> str:
+    """
+    Generate a PDF using APITemplate.io with the given template ID and data.
+
+    Args:
+        template_id (str): The ID of the template you created in APITemplate.io
+        data (dict): A JSON-like Python dictionary containing dynamic data for the template
+
+    Returns:
+        str: The download URL of the generated PDF if successful, or an error message
+    """
+    if not apiTemplate_api_key:
+        raise ValueError("❌ APITEMPLATE_API_KEY is not set in your environment.")
+
+    url = f"https://api.apitemplate.io/v1/create?template_id={template_id}"
+    headers = {
+        "Content-Type": "application/json",
+        "X-API-KEY": apiTemplate_api_key
+    }
+
+    response = requests.post(url, headers=headers, json=data)
+
+    if response.status_code == 200:
+        result = response.json()
+        download_url = result.get("download_url")
+        print("✅ PDF Generated!")
+        print("📎 Download URL:", download_url)
+        return download_url
+    else:
+        print("❌ Error:", response.status_code)
+        print(response.text)
+        return None
+
+
 
 def run_all_users():
     logging.info("🔄 Running summarization for all users...")
@@ -1166,17 +1110,32 @@ def run_all_users():
 
 
 
+def start_scheduler():
+    scheduler = BackgroundScheduler(timezone=melbourne_tz)
 
-# ==================== Logging Setup ====================
+    times = [
+        (12, 15),
+        (16, 30),
+        (20, 30),
+        (0, 30),
+        (4, 40),
+        (8, 30),
+    ]
 
-for handler in logging.root.handlers[:]:
-    logging.root.removeHandler(handler)
+    for hour, minute in times:
+        trigger = CronTrigger(hour=hour, minute=minute, timezone=melbourne_tz)
+        scheduler.add_job(run_all_users, trigger)
+        logging.info(f"⏰ Job scheduled for {hour:02d}:{minute:02d} Melbourne time.")
 
-# Set up logging to display in JupyterLab output cells
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+    scheduler.start()
+    logging.info("🟢 Background scheduler started (non-blocking).")
+
+
+
+
+
+
+
 
 
 
