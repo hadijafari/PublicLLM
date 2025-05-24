@@ -55,7 +55,8 @@ from pydub import AudioSegment
 import nest_asyncio
 import random
 from collections import defaultdict
-
+import signal
+import sys
 
 
 
@@ -1103,54 +1104,6 @@ def Generate_PDF(template_id: str, data: dict) -> str:
 
 
 
-async def run_all_users_async():
-    logging.info("🔄 Running summarization for all users...")
-    await asyncio.gather(
-        User_Daily_Digest("user_8f14e45f", bucket_name, amazon_s3),
-        User_Daily_Digest("user_deada551", bucket_name, amazon_s3),
-        User_Daily_Digest("user_b4fa9ce2", bucket_name, amazon_s3)
-    )
-    logging.info("✅ Finished summarization for all users.")
-
-
-
-
-def start_scheduler():
-    scheduler = AsyncIOScheduler(timezone=melbourne_tz)
-
-    # ✅ Define it once, outside the loop
-    def coroutine_wrapper():
-        loop = asyncio.get_event_loop()
-        loop.create_task(run_all_users_async())
-
-    times = [
-        (13, 15),
-        (16, 30),
-        (20, 30),
-        (0, 30),
-        (4, 40),
-        (8, 30),
-    ]
-
-    for hour, minute in times:
-        trigger = CronTrigger(hour=hour, minute=minute)
-        scheduler.add_job(coroutine_wrapper, trigger=trigger)
-        logging.info(f"⏰ Scheduled job at {hour:02d}:{minute:02d} Melbourne time")
-
-    scheduler.start()
-    logging.info("🟢 Scheduler started.")
-
-
-
-
-
-
-
-
-
-
-
-
 ####################################################################################################################################################################################################
 #                                                                     All Constants and Variable
 ####################################################################################################################################################################################################
@@ -1323,16 +1276,159 @@ user3 = {
 
 # ==================== MAIN FUNCTION ====================
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+import asyncio
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from pytz import timezone
+import logging
+import signal
+import sys
 
-    async def main():
-        start_scheduler()
-        # This will keep the loop alive and let APScheduler run
+# Melbourne Timezone (already defined in your constants)
+# melbourne_tz = timezone("Australia/Melbourne")
+
+async def run_daily_digests():
+    """
+    Runs the daily digest for all users.
+    This function will be called by the scheduler at specified times.
+    """
+    user_ids = ["user_8f14e45f", "user_deada551", "user_b4fa9ce2"]
+    
+    print(f"🚀 Starting daily digest generation for {len(user_ids)} users...")
+    logging.info(f"Starting daily digest generation for users: {user_ids}")
+    
+    try:
+        # Run digests for all users concurrently
+        tasks = [
+            User_Daily_Digest(user_id, bucket_name, amazon_s3) 
+            for user_id in user_ids
+        ]
+        
+        await asyncio.gather(*tasks, return_exceptions=True)
+        
+        print("✅ Daily digest generation completed for all users!")
+        logging.info("Daily digest generation completed successfully")
+        
+    except Exception as e:
+        print(f"❌ Error during daily digest generation: {e}")
+        logging.error(f"Error during daily digest generation: {e}")
+
+def setup_scheduler():
+    """
+    Sets up the AsyncIO scheduler with specified times.
+    Returns the configured scheduler instance.
+    """
+    scheduler = AsyncIOScheduler(timezone=melbourne_tz)
+    
+    # Define the times when digests should run
+    times = [
+        (13, 15),  # 1:15 PM
+        (16, 30),  # 4:30 PM
+        (20, 30),  # 8:30 PM
+        (0, 30),   # 12:30 AM
+        (4, 40),   # 4:40 AM
+        (8, 30),   # 8:30 AM
+    ]
+    
+    # Add jobs for each specified time
+    for hour, minute in times:
+        scheduler.add_job(
+            run_daily_digests,
+            trigger=CronTrigger(
+                hour=hour, 
+                minute=minute, 
+                timezone=melbourne_tz
+            ),
+            id=f"daily_digest_{hour:02d}_{minute:02d}",
+            name=f"Daily Digest at {hour:02d}:{minute:02d}",
+            max_instances=1,  # Prevent overlapping runs
+            coalesce=True     # If missed, run only once when back online
+        )
+        print(f"📅 Scheduled daily digest at {hour:02d}:{minute:02d} Melbourne time")
+    
+    return scheduler
+
+def signal_handler(signum, frame):
+    """
+    Graceful shutdown handler for CTRL+C and other signals.
+    """
+    print("\n🛑 Received shutdown signal. Stopping scheduler...")
+    logging.info("Received shutdown signal")
+    sys.exit(0)
+
+async def main():
+    """
+    Main function that initializes and runs the news digest system.
+    """
+    print("🌟 Starting AI News Digest System...")
+    print("=" * 60)
+    
+    # Set up logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler('news_digest.log'),
+            logging.StreamHandler()
+        ]
+    )
+    
+    # Set up signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    try:
+        # Initialize the scheduler
+        scheduler = setup_scheduler()
+        
+        # Start the scheduler
+        scheduler.start()
+        print("✅ Scheduler started successfully!")
+        print("📊 Scheduled Jobs:")
+        for job in scheduler.get_jobs():
+            print(f"   - {job.name} (ID: {job.id})")
+        
+        print("\n🔄 System is running... Press CTRL+C to stop")
+        print("-" * 60)
+        
+        # Keep the program running
         while True:
-            await asyncio.sleep(3600)  # sleep forever-ish
+            await asyncio.sleep(60)  # Check every minute
+            
+    except KeyboardInterrupt:
+        print("\n🛑 Received CTRL+C. Shutting down...")
+    except Exception as e:
+        print(f"❌ Unexpected error in main: {e}")
+        logging.error(f"Unexpected error in main: {e}")
+    finally:
+        if 'scheduler' in locals():
+            scheduler.shutdown()
+            print("✅ Scheduler shut down gracefully")
 
-    asyncio.run(main())
+def run_manual_digest():
+    """
+    Helper function to manually run digest for testing purposes.
+    Can be called independently without the scheduler.
+    """
+    print("🧪 Running manual digest (for testing)...")
+    asyncio.run(run_daily_digests())
+
+# Alternative main function for running without scheduling (testing mode)
+async def test_mode():
+    """
+    Test mode - runs digest once immediately without scheduling.
+    """
+    print("🧪 Running in TEST MODE - executing digest once...")
+    await run_daily_digests()
+    print("✅ Test completed!")
+
+if __name__ == "__main__":
+    # Check if running in test mode
+    if len(sys.argv) > 1 and sys.argv[1] == "--test":
+        asyncio.run(test_mode())
+    else:
+        # Run the full scheduler
+        asyncio.run(main())
 
 
 
