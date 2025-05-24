@@ -1276,16 +1276,6 @@ user3 = {
 
 # ==================== MAIN FUNCTION ====================
 
-import asyncio
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
-from pytz import timezone
-import logging
-import signal
-import sys
-
-# Melbourne Timezone (already defined in your constants)
-# melbourne_tz = timezone("Australia/Melbourne")
 
 async def run_daily_digests():
     """
