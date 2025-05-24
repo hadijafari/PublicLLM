@@ -1124,7 +1124,7 @@ def start_scheduler():
         loop.create_task(run_all_users_async())
 
     times = [
-        (13, 07),
+        (13, 15),
         (16, 30),
         (20, 30),
         (0, 30),
