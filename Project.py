@@ -1119,7 +1119,7 @@ def start_scheduler():
     scheduler = AsyncIOScheduler(timezone=melbourne_tz)
 
     times = [
-        (12, 30),
+        (12, 35),
         (16, 30),
         (20, 30),
         (0, 30),
@@ -1320,9 +1320,14 @@ user3 = {
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    start_scheduler()
-    asyncio.get_event_loop().run_forever()
 
+    async def main():
+        start_scheduler()
+        # This will keep the loop alive and let APScheduler run
+        while True:
+            await asyncio.sleep(3600)  # sleep forever-ish
+
+    asyncio.run(main())
 
 
 
