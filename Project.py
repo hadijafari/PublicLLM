@@ -1117,7 +1117,7 @@ def start_scheduler():
     scheduler = AsyncIOScheduler(timezone=melbourne_tz)
 
     times = [
-        (12, 15),
+        (12, 25),
         (16, 30),
         (20, 30),
         (0, 30),
