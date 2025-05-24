@@ -1312,7 +1312,7 @@ def setup_scheduler():
     
     # Define the times when digests should run
     times = [
-        (13, 15),  # 1:15 PM
+        (13, 33),  # 1:15 PM
         (16, 30),  # 4:30 PM
         (20, 30),  # 8:30 PM
         (0, 30),   # 12:30 AM
