@@ -1127,14 +1127,15 @@ def start_scheduler():
         (8, 30),
     ]
 
+    # Register jobs directly as coroutines
     for hour, minute in times:
         trigger = CronTrigger(hour=hour, minute=minute)
-        scheduler.add_job(lambda: asyncio.create_task(run_all_users_async()), trigger=trigger)
+
+        scheduler.add_job(run_all_users_async, trigger=trigger)
         logging.info(f"⏰ Scheduled job at {hour:02d}:{minute:02d} Melbourne time")
 
     scheduler.start()
-    print("🟢 Scheduler started.")
-
+    logging.info("🟢 Scheduler started.")
 
 
 
