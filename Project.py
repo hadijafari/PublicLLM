@@ -947,14 +947,16 @@ async def User_Daily_Digest(user_id: str, bucket_name: str, s3_client):
 
     User_Profile = load_user_profile_from_s3(user_id, bucket_name, s3_client)
     print("User Profile")
-    print(json.dumps(User_Profile, indent=4))
+    logging.info(json.dumps(User_Profile, indent=4))
+    # print(json.dumps(User_Profile, indent=4))
     print("\n\n\n")
 
     prefix = f"{user_id}/"
     json_files_List = list_json_files_in_folder(bucket_name, prefix, s3_client)
 
     print("The available JSON files are here:")
-    print(json.dumps(json_files_List, indent=4))
+    logging.info(json.dumps(json_files_List, indent=4))
+    # print(json.dumps(json_files_List, indent=4))
     print("\n\n\n")
 
     all_new_links = []  # collect all new links from all the URLs
@@ -987,7 +989,8 @@ async def User_Daily_Digest(user_id: str, bucket_name: str, s3_client):
         all_new_links = all_new_links[:max_links]
 
     print("All New Links:")
-    print(json.dumps(all_new_links, indent=4))
+    logging.info(json.dumps(all_new_links, indent=4))
+    # print(json.dumps(all_new_links, indent=4))
     print("\n\n\n\n\n\n")
 
     # Step: Run batch scraping on all new links
@@ -1005,8 +1008,8 @@ async def User_Daily_Digest(user_id: str, bucket_name: str, s3_client):
                 updated_item["Summary"] = summary
         scraped_data_list[i] = updated_item
 
-    print("Final dictionary:")
-    print(json.dumps(scraped_data_list, indent=4))
+    # print("Final dictionary:")
+    # print(json.dumps(scraped_data_list, indent=4))
 
     # Prepare data for PDF and email
     all_summaries = []
@@ -1312,12 +1315,12 @@ def setup_scheduler():
     
     # Define the times when digests should run
     times = [
-        (13, 33),  # 1:15 PM
-        (16, 30),  # 4:30 PM
-        (20, 30),  # 8:30 PM
-        (0, 30),   # 12:30 AM
-        (4, 40),   # 4:40 AM
-        (8, 30),   # 8:30 AM
+        (13, 55),  # 1:15 PM
+        (14, 30),  # 4:30 PM
+        (16, 30),  # 8:30 PM
+        (18, 30),   # 12:30 AM
+        (20, 40),   # 4:40 AM
+        (22, 30),   # 8:30 AM
     ]
     
     # Add jobs for each specified time
