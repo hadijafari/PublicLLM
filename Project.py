@@ -1103,9 +1103,9 @@ def Generate_PDF(template_id: str, data: dict) -> str:
 
 def run_all_users():
     logging.info("🔄 Running summarization for all users...")
-    User_Daily_scraping_and_summarization("user_8f14e45f", bucket_name, amazon_s3)
-    User_Daily_scraping_and_summarization("user_deada551", bucket_name, amazon_s3)
-    User_Daily_scraping_and_summarization("user_b4fa9ce2", bucket_name, amazon_s3)
+    User_Daily_Digest("user_8f14e45f", bucket_name, amazon_s3)
+    User_Daily_Digest("user_deada551", bucket_name, amazon_s3)
+    User_Daily_Digest("user_b4fa9ce2", bucket_name, amazon_s3)
     logging.info("✅ Finished summarization for all users.")
 
 
@@ -1114,7 +1114,7 @@ def start_scheduler():
     scheduler = BackgroundScheduler(timezone=melbourne_tz)
 
     times = [
-        (12, 00),
+        (12, 10),
         (16, 30),
         (20, 30),
         (0, 30),
