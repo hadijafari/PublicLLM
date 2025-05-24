@@ -1130,7 +1130,7 @@ def start_scheduler():
     for hour, minute in times:
         trigger = CronTrigger(hour=hour, minute=minute)
         scheduler.add_job(lambda: asyncio.create_task(run_all_users_async()), trigger=trigger)
-        print(f"⏰ Scheduled job at {hour:02d}:{minute:02d} Melbourne time")
+        logging.info(f"⏰ Scheduled job at {hour:02d}:{minute:02d} Melbourne time")
 
     scheduler.start()
     print("🟢 Scheduler started.")
