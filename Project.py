@@ -1118,8 +1118,13 @@ async def run_all_users_async():
 def start_scheduler():
     scheduler = AsyncIOScheduler(timezone=melbourne_tz)
 
+    # ✅ Define it once, outside the loop
+    def coroutine_wrapper():
+        loop = asyncio.get_event_loop()
+        loop.create_task(run_all_users_async())
+
     times = [
-        (12, 54),
+        (13, 07),
         (16, 30),
         (20, 30),
         (0, 30),
@@ -1127,15 +1132,14 @@ def start_scheduler():
         (8, 30),
     ]
 
-    # Register jobs directly as coroutines
     for hour, minute in times:
         trigger = CronTrigger(hour=hour, minute=minute)
-
-        scheduler.add_job(run_all_users_async, trigger=trigger)
+        scheduler.add_job(coroutine_wrapper, trigger=trigger)
         logging.info(f"⏰ Scheduled job at {hour:02d}:{minute:02d} Melbourne time")
 
     scheduler.start()
     logging.info("🟢 Scheduler started.")
+
 
 
 
