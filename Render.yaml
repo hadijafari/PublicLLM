@@ -1,0 +1,31 @@
+services:
+  - type: worker
+    name: ai-daily-digest-worker
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: true
+      - key: ANTHROPIC_API_KEY
+        sync: true
+      - key: GOOGLE_API_KEY
+        sync: true
+      - key: FIRECRAWL_API_KEY_2
+        sync: true
+      - key: AMAZON_S3_ACCESS_KEY_ID
+        sync: true
+      - key: AMAZON_S3_ACCESS_KEY
+        sync: true
+      - key: API_TEMPLATE_API_KEY
+        sync: true
+      - key: EMAIL_SYNC_SENDER
+        sync: true
+      - key: EMAIL_SYNC_PASSWORD
+        sync: true
+      - key: EMAIL_RECIPIENT
+        sync: true
+      - key: TEMPLATE_ID
+        sync: true
+      - key: TZ
+        value: Australia/Melbourne
