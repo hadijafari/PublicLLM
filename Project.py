@@ -1114,7 +1114,7 @@ def start_scheduler():
     scheduler = BackgroundScheduler(timezone=melbourne_tz)
 
     times = [
-        (12, 15),
+        (12, 00),
         (16, 30),
         (20, 30),
         (0, 30),
